@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Briefing Diário — Mercados</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161a23;
+    --surface2: #1e2330;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --muted: #7a8099;
+    --accent: #3b82f6;
+    --accent2: #60a5fa;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --teal: #14b8a6;
+    --purple: #a78bfa;
+    --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  header {
+    border-bottom: 1px solid var(--border2);
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .logo span { color: var(--accent2); }
+  #timestamp {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  #btn-refresh {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #btn-refresh:hover { opacity: 0.85; }
+  #btn-refresh:disabled { opacity: 0.45; cursor: not-allowed; }
+  main { padding: 24px 28px; max-width: 1200px; margin: 0 auto; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+  }
+  .tab {
+    padding: 8px 16px;
+    border-radius: 6px 6px 0 0;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent2);
+    border-bottom-color: var(--accent2);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    header { flex-wrap: wrap; gap: 8px; }
+    main { padding: 16px; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .card-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-title .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .section-head {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 24px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-head::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .indicator-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .indicator-row:last-child { border-bottom: none; }
+  .ind-label { color: var(--muted); font-size: 12px; }
+  .ind-val { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+  .ind-change { font-family: var(--mono); font-size: 11px; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .neu { color: var(--muted); }
+
+  .prose-block {
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: #c8ccd8;
+  }
+  .prose-block p { margin-bottom: 10px; }
+  .prose-block p:last-child { margin-bottom: 0; }
+  .prose-block strong { color: var(--text); font-weight: 600; }
+  .prose-block h4 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent2);
+    margin: 16px 0 8px;
+  }
+  .prose-block ul { padding-left: 18px; }
+  .prose-block li { margin-bottom: 5px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-right: 4px;
+  }
+  .tag-hawkish { background: rgba(239,68,68,0.15); color: #f87171; }
+  .tag-dovish { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .tag-neutro { background: rgba(122,128,153,0.2); color: #9ba3b8; }
+  .tag-alerta { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .tag-positivo { background: rgba(20,184,166,0.15); color: #2dd4bf; }
+
+  .event-row {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .event-row:last-child { border-bottom: none; }
+  .event-date {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--amber);
+    min-width: 70px;
+    padding-top: 1px;
+  }
+  .event-body { flex: 1; }
+  .event-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .event-meta { font-size: 11px; color: var(--muted); }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 4px;
+    height: 12px;
+    margin-bottom: 8px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .loading-block { padding: 8px 0; }
+  .sk-w100 { width: 100%; }
+  .sk-w80 { width: 80%; }
+  .sk-w60 { width: 60%; }
+
+  .error-msg {
+    color: var(--red);
+    font-size: 13px;
+    padding: 12px;
+    background: rgba(239,68,68,0.08);
+    border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.2);
+  }
+
+  #api-key-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border2);
+    padding: 10px 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  #api-key-bar label { font-size: 12px; color: var(--muted); }
+  #api-key-input {
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    width: 320px;
+  }
+  #save-key {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  #save-key:hover { border-color: var(--accent); color: var(--accent2); }
+  #key-status { font-size: 11px; color: var(--green); }
+
+  .market-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .market-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .chip-name { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .chip-val { font-family: var(--mono); font-size: 15px; font-weight: 700; }
+  .chip-chg { font-family: var(--mono); font-size: 11px; margin-top: 2px; }
+
+  .country-section { margin-bottom: 20px; }
+  .country-flag { font-size: 18px; margin-right: 6px; }
+  .country-name { font-size: 14px; font-weight: 600; }
+
+  footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+    margin-top: 32px;
+  }
+</style>
+</head>
+<body>
+
+<div id="api-key-bar">
+  <label for="api-key-input">🔑 Anthropic API Key:</label>
+  <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
+  <button id="save-key">Salvar</button>
+  <span id="key-status"></span>
+  <span style="margin-left:auto; font-size:11px; color:var(--muted)">A chave fica salva apenas no seu navegador (localStorage)</span>
+</div>
+
+<header>
+  <div class="logo">
+    <span>⬡</span> Briefing <span>Diário</span>
+  </div>
+  <div id="timestamp">—</div>
+  <button id="btn-refresh" onclick="runBriefing()">
+    ↻ Gerar briefing
+  </button>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('brasil')">🇧🇷 Brasil</button>
+    <button class="tab" onclick="switchTab('exterior')">🌐 Exterior</button>
+    <button class="tab" onclick="switchTab('setores')">📊 Setores & Empresas</button>
+    <button class="tab" onclick="switchTab('agenda')">📅 Agenda da Semana</button>
+    <button class="tab" onclick="switchTab('resumo')">⚡ Resumo Executivo</button>
+  </div>
+
+  <!-- BRASIL -->
+  <div id="tab-brasil" class="tab-panel active">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent)"></span> Política Monetária</div>
+        <div id="brasil-juros" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div><div class="skeleton sk-w60"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--amber)"></span> Inflação & Câmbio</div>
+        <div id="brasil-inflacao" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div><div class="skeleton sk-w60"></div></div></div>
+      </div>
+    </div>
+    <div class="section-head">Fiscal & Atividade</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--red)"></span> Fiscal</div>
+        <div id="brasil-fiscal" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span> Atividade Econômica</div>
+        <div id="brasil-atividade" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+    </div>
+    <div class="section-head">Curva de Juros</div>
+    <div class="card">
+      <div id="brasil-curva" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+    </div>
+  </div>
+
+  <!-- EXTERIOR -->
+  <div id="tab-exterior" class="tab-panel">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:#3b82f6"></span> 🇺🇸 Estados Unidos</div>
+        <div id="ext-eua" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div><div class="skeleton sk-w60"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--amber)"></span> 🇪🇺 Europa</div>
+        <div id="ext-eur" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+    </div>
+    <div class="section-head">Ásia & Emergentes</div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--red)"></span> 🇨🇳 China</div>
+        <div id="ext-china" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--teal)"></span> 🇯🇵 Japão</div>
+        <div id="ext-jap" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--purple)"></span> Emergentes</div>
+        <div id="ext-em" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+    </div>
+    <div class="section-head">Commodities & Fluxo Global</div>
+    <div class="card">
+      <div id="ext-commodities" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+    </div>
+  </div>
+
+  <!-- SETORES -->
+  <div id="tab-setores" class="tab-panel">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent)"></span> Financeiro & Bancos</div>
+        <div id="setor-financeiro" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span> Commodities & Energia</div>
+        <div id="setor-commodities" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+    </div>
+    <div class="section-head">Outros Setores</div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--teal)"></span> Varejo & Consumo</div>
+        <div id="setor-varejo" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--amber)"></span> Real Estate & Utilities</div>
+        <div id="setor-real" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--purple)"></span> Tecnologia & Saúde</div>
+        <div id="setor-tech" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+    </div>
+    <div class="section-head">Destaques de Empresas</div>
+    <div class="card">
+      <div id="empresas-destaque" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+    </div>
+  </div>
+
+  <!-- AGENDA -->
+  <div id="tab-agenda" class="tab-panel">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent)"></span> Eventos Brasil</div>
+        <div id="agenda-brasil" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div><div class="skeleton sk-w60"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--amber)"></span> Eventos Internacionais</div>
+        <div id="agenda-inter" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div><div class="skeleton sk-w60"></div></div></div>
+      </div>
+    </div>
+    <div class="section-head">O que monitorar esta semana</div>
+    <div class="card">
+      <div id="agenda-watchlist" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+    </div>
+  </div>
+
+  <!-- RESUMO -->
+  <div id="tab-resumo" class="tab-panel">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot" style="background:var(--accent2)"></span> Executive Summary — Para começar o dia</div>
+      <div id="resumo-exec" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div><div class="skeleton sk-w60"></div><div class="skeleton sk-w80"></div><div class="skeleton sk-w100"></div></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span> Teses em vigor / O que está funcionando</div>
+        <div id="resumo-positivo" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--red)"></span> Riscos & Pontos de atenção</div>
+        <div id="resumo-riscos" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+      </div>
+    </div>
+    <div class="section-head">Narrativas-chave para advisors</div>
+    <div class="card">
+      <div id="resumo-narrativas" class="prose-block"><div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div></div></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Briefing Diário · Dados via Anthropic Claude com busca na web · Uso interno
+</footer>
+
+<script>
+const SECTIONS = {
+  'brasil-juros': {
+    tab: 'brasil',
+    prompt: `Você é um analista sênior de mercados financeiros brasileiro. Data de hoje: ${new Date().toLocaleDateString('pt-BR', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}.
+
+Faça um briefing ATUALIZADO e DENSO sobre POLÍTICA MONETÁRIA DO BRASIL:
+- Selic atual e expectativa para próximas reuniões do COPOM
+- Comunicado mais recente do BCB e tom (hawkish/dovish)
+- Projeções do Focus (IPCA e Selic 12 meses)
+- Divergência entre mercado e BCB se houver
+- Implicação para renda fixa e prefixados
+
+Formato: parágrafos densos com dados concretos. Use termos técnicos. Destaque números com **negrito**. Inclua tags de tom como [HAWKISH], [DOVISH] ou [NEUTRO] quando relevante.`
+  },
+  'brasil-inflacao': {
+    tab: 'brasil',
+    prompt: `Você é um analista sênior de mercados financeiros brasileiro. Data de hoje: ${new Date().toLocaleDateString('pt-BR', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}.
+
+Briefing ATUALIZADO sobre INFLAÇÃO E CÂMBIO NO BRASIL:
+- IPCA últimas leituras, tendência e núcleos
+- Expectativas de inflação curto e longo prazo (Focus)
+- USD/BRL: nível atual, drivers recentes, posicionamento
+- Impacto do câmbio na inflação de serviços/industriais
+- Comparativo com peers emergentes
+
+Formato: parágrafos densos. Use **negrito** para números. Seja direto e técnico.`
+  },
+  'brasil-fiscal': {
+    tab: 'brasil',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing ATUAL sobre FISCAL BRASIL:
+- Resultado primário recente vs. meta
+- Arcabouço fiscal: cumprimento ou risco?
+- Dívida/PIB tendência
+- Emissões do Tesouro e impacto na curva
+- Risco político-fiscal relevante no momento
+Parágrafos densos com dados concretos. **Negrito** para números-chave.`
+  },
+  'brasil-atividade': {
+    tab: 'brasil',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing ATUAL sobre ATIVIDADE ECONÔMICA BRASIL:
+- PIB últimas leituras e projeções 2024/2025
+- Mercado de trabalho: emprego, renda, CAGED
+- Crédito: crescimento, inadimplência, spreads
+- Setores mais fortes/fracos no momento
+- Confiança do consumidor e empresário
+Parágrafos densos. **Negrito** para números.`
+  },
+  'brasil-curva': {
+    tab: 'brasil',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing sobre CURVA DE JUROS BRASIL (B3/Tesouro):
+- Nível atual de DI futuro nos vencimentos curto (jan26), médio (jan28) e longo (jan33+)
+- Inclinação da curva: curva invertida, normal, flat?
+- Prêmio de risco embutido na parte longa
+- Comportamento recente: abertura ou fechamento?
+- O que o mercado está precificando para Selic terminal
+- Oportunidades ou riscos para carteiras de renda fixa
+Seja técnico, use **negrito** para níveis de taxa e datas relevantes.`
+  },
+  'ext-eua': {
+    tab: 'exterior',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing ATUALIZADO EUA:
+- Fed: postura atual, expectativa de cortes/altas (dot plot / CME FedWatch)
+- Inflação: CPI/PCE últimas leituras
+- Atividade: PIB, payroll, ISM, confiança
+- Treasuries: yield da T10Y e spread 2s10s
+- S&P 500 e Nasdaq: performance e valuations
+- Narrativa macro dominante no momento
+Parágrafos densos com dados. **Negrito** para números.`
+  },
+  'ext-eur': {
+    tab: 'exterior',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing ATUALIZADO EUROPA:
+- BCE: taxa atual, última decisão, próximas reuniões
+- Inflação na zona do euro
+- Atividade: PMI, confiança, crescimento
+- Alemanha: situação especial se relevante
+- EUR/USD: nível e drivers
+- Riscos políticos se relevantes (UK, França, etc.)
+Parágrafos densos. **Negrito** para dados.`
+  },
+  'ext-china': {
+    tab: 'exterior',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing ATUALIZADO CHINA:
+- Crescimento: PIB, PMI, atividade industrial
+- Política monetária: PBOC, LPR
+- Setor imobiliário: situação atual
+- Estímulos fiscais anunciados
+- Impacto em commodities (minério, petróleo, soja)
+- Tensões geopolíticas/comerciais relevantes
+Parágrafos densos. **Negrito** para dados-chave.`
+  },
+  'ext-jap': {
+    tab: 'exterior',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing JAPÃO:
+- BoJ: política atual, expectativa de normalização
+- USD/JPY e carry trade: impacto global
+- Inflação japonesa
+- Atividade econômica
+- Relevância para fluxos globais de capital
+Parágrafos concisos. **Negrito** para dados.`
+  },
+  'ext-em': {
+    tab: 'exterior',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing EMERGENTES (excl. Brasil e China):
+- México, Argentina, Turquia, Índia: destaques relevantes
+- Fluxo de capital para emergentes: risk-on ou risk-off?
+- Índice MSCI EM performance recente
+- Dólar Index (DXY): nível e impacto em EM
+- Commodity-linked EM vs. non-commodity
+Parágrafos densos. **Negrito** para dados.`
+  },
+  'ext-commodities': {
+    tab: 'exterior',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing COMMODITIES & FLUXO GLOBAL:
+- Petróleo (WTI/Brent): preço, OPEP+, demanda/oferta
+- Minério de ferro: cotação e demanda China
+- Soja e agro: safra, cotações, clima
+- Ouro: nível, demanda bancos centrais
+- Cobre como termômetro da atividade global
+- VIX: apetite de risco global
+Parágrafos densos com preços atuais. **Negrito** para cotações.`
+  },
+  'setor-financeiro': {
+    tab: 'setores',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing SETOR FINANCEIRO BRASIL:
+- Bancos: ITUB4, BBDC4, BBAS3, SANB11 — temas relevantes
+- Crédito: crescimento das carteiras, inadimplência, spreads
+- Seguros e fintechs relevantes
+- Impacto de juros altos no setor
+- ROE e valuations do setor
+Parágrafos densos. **Negrito** para tickers e dados.`
+  },
+  'setor-commodities': {
+    tab: 'setores',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing COMMODITIES & ENERGIA B3:
+- VALE3: minério, produção, dividendos
+- PETR4/PETROBRAS: petróleo, dividendos, política
+- Siderurgia: CSN, Gerdau, Usiminas
+- Agro: SLC, Boa Safra, outras
+- Impacto do câmbio e preços internacionais
+Parágrafos densos. **Negrito** para tickers e dados.`
+  },
+  'setor-varejo': {
+    tab: 'setores',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing VAREJO & CONSUMO BRASIL:
+- MGLU3, VIIA3, AMER3: situação financeira atual
+- LREN3, AMAR3: moda e performance
+- Atacado: CRFB3, PCAR3, ASAI3
+- Juros altos vs. consumo das famílias
+- E-commerce: penetração e margens
+Parágrafos densos. **Negrito** para tickers.`
+  },
+  'setor-real': {
+    tab: 'setores',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing REAL ESTATE & UTILITIES BRASIL:
+- FIIs: IFIX, segmentos (shoppings, logística, recebíveis), yields
+- Construtoras: MRVE3, EVEN3, CURY3 — MCMV e alta renda
+- Utilities: EGIE3, TAEE11, CPFE3 — tarifas e concessões
+- Impacto da Selic alta nos FIIs vs. renda fixa
+- Regulatório relevante
+Parágrafos densos. **Negrito** para tickers e taxas.`
+  },
+  'setor-tech': {
+    tab: 'setores',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Briefing TECNOLOGIA & SAÚDE BRASIL:
+- MELI: performance e resultados recentes
+- TOTVS, INTB3, POSI3: enterprise tech
+- RDOR3, HAPV3, SULA11: saúde e benefícios
+- Educação: COGN3, YDUQ3
+- Tech global vs. local: comparativo de valuations
+Parágrafos densos. **Negrito** para tickers.`
+  },
+  'empresas-destaque': {
+    tab: 'setores',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. DESTAQUES DE EMPRESAS — o que está movendo o mercado hoje/esta semana:
+- Resultados recentes relevantes (earnings)
+- M&A, desinvestimentos, IPOs relevantes
+- Guidance atualizado por empresas relevantes
+- Fatos relevantes publicados
+- Movimentos relevantes de empresas internacionais que afetam B3
+Liste em formato de bullets curtos com contexto. **Negrito** para nomes de empresas.`
+  },
+  'agenda-brasil': {
+    tab: 'agenda',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. AGENDA ECONÔMICA DA SEMANA — BRASIL:
+Liste os principais eventos, divulgações e reuniões desta semana no Brasil, incluindo:
+- Reuniões COPOM previstas
+- Divulgações IBGE (IPCA, PIB, PNAD)
+- Tesouro: leilões previstos
+- BCB: relatórios (Focus, IBC-Br, Relatório Inflação)
+- Resultados de empresas relevantes (earnings season)
+- Eventos políticos/regulatórios relevantes
+Formato: para cada evento, coloque data, nome do evento, expectativa ou consenso de mercado se disponível.`
+  },
+  'agenda-inter': {
+    tab: 'agenda',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. AGENDA ECONÔMICA INTERNACIONAL DA SEMANA:
+- EUA: Fed meetings, CPI, PCE, payroll, ISM, PIB
+- Europa: BCE meetings, PMIs, inflação
+- China: dados relevantes previstos
+- Geopolítica: reuniões G7/G20, OPEP+, outros
+- Qualquer evento de cauda relevante
+Para cada evento: data, nome, expectativa do mercado vs. anterior.`
+  },
+  'agenda-watchlist': {
+    tab: 'agenda',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. O QUE MONITORAR ESTA SEMANA — lista de vigilância para um advisor de investimentos:
+Compile os 5-8 indicadores ou eventos mais críticos desta semana que podem mover mercados brasileiros. Para cada um explique brevemente:
+- Por que é importante agora
+- Cenário base vs. risco
+- Impacto esperado em classes de ativos (renda fixa, câmbio, renda variável)
+Seja direto, como um briefing de mesa de operações.`
+  },
+  'resumo-exec': {
+    tab: 'resumo',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. EXECUTIVE SUMMARY DIÁRIO para um advisor de investimentos sênior de banco brasileiro:
+
+Em 3-4 parágrafos densos, sintetize o panorama macro-financeiro completo do dia/semana:
+1. O que está movendo mercados globais agora
+2. O quadro brasileiro: juros, câmbio, inflação, fiscal
+3. As principais tensões ou confluências entre cenários
+4. O que o mercado está "apostando" neste momento
+
+Tom: mesa de operações, direto, sem floreios. Use **negrito** para conceitos-chave.`
+  },
+  'resumo-positivo': {
+    tab: 'resumo',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Para um advisor brasileiro: liste as 4-6 TESES DE INVESTIMENTO QUE ESTÃO FUNCIONANDO no momento, com contexto breve. Pode incluir: setores, classes de ativos, estratégias de duration, carry, etc. Seja específico e atual.`
+  },
+  'resumo-riscos': {
+    tab: 'resumo',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. Para um advisor brasileiro: liste os 4-6 PRINCIPAIS RISCOS E PONTOS DE ATENÇÃO do momento. Riscos macro, setoriais, geopolíticos e técnicos. Para cada um: qual o gatilho e qual o impacto esperado em carteiras.`
+  },
+  'resumo-narrativas': {
+    tab: 'resumo',
+    prompt: `Data hoje: ${new Date().toLocaleDateString('pt-BR')}. NARRATIVAS-CHAVE PARA CONVERSAS COM CLIENTES ESTA SEMANA:
+Um advisor precisa explicar o cenário a clientes pessoa física com patrimônio. Quais são as 3-4 narrativas mais importantes agora que ele precisa dominar? Para cada uma:
+- O que está acontecendo (linguagem clara)
+- Por que importa para o cliente
+- Como se posicionar (orientação geral, não recomendação específica)
+Seja prático e acionável.`
+  }
+};
+
+let apiKey = localStorage.getItem('briefing_api_key') || '';
+const keyInput = document.getElementById('api-key-input');
+const keyStatus = document.getElementById('key-status');
+
+if (apiKey) {
+  keyInput.value = apiKey;
+  keyStatus.textContent = '✓ Chave salva';
+}
+
+document.getElementById('save-key').onclick = () => {
+  apiKey = keyInput.value.trim();
+  localStorage.setItem('briefing_api_key', apiKey);
+  keyStatus.textContent = '✓ Salvo!';
+  setTimeout(() => { keyStatus.textContent = apiKey ? '✓ Chave ativa' : ''; }, 1500);
+};
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function skeleton() {
+  return `<div class="loading-block"><div class="skeleton sk-w100"></div><div class="skeleton sk-w80"></div><div class="skeleton sk-w60"></div></div>`;
+}
+
+function renderMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[HAWKISH\]/g, '<span class="tag tag-hawkish">HAWKISH</span>')
+    .replace(/\[DOVISH\]/g, '<span class="tag tag-dovish">DOVISH</span>')
+    .replace(/\[NEUTRO\]/g, '<span class="tag tag-neutro">NEUTRO</span>')
+    .replace(/\[ALERTA\]/g, '<span class="tag tag-alerta">ALERTA</span>')
+    .replace(/\[POSITIVO\]/g, '<span class="tag tag-positivo">POSITIVO</span>')
+    .replace(/^#{1,4}\s+(.+)$/gm, '<h4>$1</h4>')
+    .replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    .replace(/\n\n+/g, '</p><p>')
+    .replace(/^(?!<[hul])(.+)$/gm, (m) => m.startsWith('<') ? m : m)
+    .split('\n').map(line => {
+      if (line.startsWith('<h4>') || line.startsWith('<li>') || line.startsWith('<ul>') || line.startsWith('</ul>') || line.startsWith('<p>') || line === '') return line;
+      return line;
+    }).join('\n');
+}
+
+async function fetchSection(id, promptText) {
+  const el = document.getElementById(id);
+  el.innerHTML = skeleton();
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'interleaved-thinking-2025-05-14'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: promptText }]
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      el.innerHTML = `<div class="error-msg">Erro ${resp.status}: ${err.error?.message || 'Verifique sua API key'}</div>`;
+      return;
+    }
+    const data = await resp.json();
+    const text = data.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('\n');
+    const html = '<p>' + renderMarkdown(text) + '</p>';
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="error-msg">Erro de rede: ${e.message}</div>`;
+  }
+}
+
+async function runBriefing() {
+  if (!apiKey) {
+    alert('Por favor, insira sua Anthropic API Key no campo acima e clique em Salvar.');
+    return;
+  }
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '⟳ Buscando...';
+
+  document.getElementById('timestamp').textContent =
+    'Atualizado em ' + new Date().toLocaleString('pt-BR');
+
+  Object.keys(SECTIONS).forEach(id => {
+    document.getElementById(id).innerHTML = skeleton();
+  });
+
+  const entries = Object.entries(SECTIONS);
+  const batchSize = 3;
+  for (let i = 0; i < entries.length; i += batchSize) {
+    const batch = entries.slice(i, i + batchSize);
+    await Promise.all(batch.map(([id, cfg]) => fetchSection(id, cfg.prompt)));
+  }
+
+  btn.disabled = false;
+  btn.textContent = '↻ Atualizar';
+}
+
+document.getElementById('timestamp').textContent =
+  new Date().toLocaleDateString('pt-BR', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+</script>
+</body>
+</html>
